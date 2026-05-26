@@ -7,6 +7,8 @@ import {
   SignupSchema,
   LoginSchema,
   DeptRegisterSchema,
+  UpdateProfileSchema,
+  ChangePasswordSchema,
 } from '../utils/validators';
 import {
   BadRequestError,
@@ -129,6 +131,56 @@ router.post(
         'Department application submitted. You will be notified once a super-admin approves it.',
       departmentId: department._id.toString(),
     });
+  })
+);
+
+/**
+ * PATCH /api/auth/me — update current user's profile (name, phone).
+ * Email is intentionally NOT updatable (it's the login identifier and would
+ * need a verification flow we don't have in v1).
+ */
+router.patch(
+  '/me',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const body = UpdateProfileSchema.parse(req.body);
+
+    const user = req.user!;
+    if (body.name !== undefined) user.name = body.name;
+    if (body.phone !== undefined) user.phone = body.phone ?? undefined;
+    await user.save();
+
+    res.json({ user: user.toSafeJSON() });
+  })
+);
+
+/**
+ * POST /api/auth/change-password — verify current password, set new one.
+ * Returns a freshly-signed token so the client can replace its stored token
+ * (in case we ever add token-rotation/jti invalidation in the future).
+ */
+router.post(
+  '/change-password',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const body = ChangePasswordSchema.parse(req.body);
+
+    // Re-fetch with the password field selected
+    const user = await User.findById(req.user!._id).select('+password');
+    if (!user) throw new UnauthorizedError('User not found');
+
+    const ok = await user.comparePassword(body.currentPassword);
+    if (!ok) throw new UnauthorizedError('Current password is incorrect');
+
+    if (body.currentPassword === body.newPassword) {
+      throw new BadRequestError('New password must differ from current');
+    }
+
+    user.password = body.newPassword; // pre-save hook will hash
+    await user.save();
+
+    const token = signToken(user);
+    res.json({ ok: true, token });
   })
 );
 

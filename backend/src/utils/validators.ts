@@ -69,3 +69,15 @@ export const RerouteSchema = z.object({
 export const AssignSchema = z.object({
   departmentId: z.string().min(1),
 });
+
+// ---- Profile ----
+
+export const UpdateProfileSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  phone: z.string().max(30).optional().nullable(),
+});
+
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z.string().min(6, 'New password must be at least 6 characters').max(100),
+});

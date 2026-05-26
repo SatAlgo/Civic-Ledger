@@ -10,6 +10,7 @@ import { ArrowLeft, MapPin, Calendar, User, Loader2, AlertTriangle } from 'lucid
 import { RoleGuard } from '@/components/RoleGuard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 import type { Issue, IssueStatus } from '@/lib/types';
 import { CATEGORY_LABELS, STATUS_LABELS } from '@/lib/types';
 
@@ -19,7 +20,7 @@ const NEXT_STATUSES: IssueStatus[] = ['assigned', 'in_progress', 'resolved', 're
 
 export default function DeptIssueDetail() {
   return (
-    <RoleGuard allowed={['department_admin']}>
+    <RoleGuard allowed={['department_admin', 'super_admin']}>
       <Detail />
     </RoleGuard>
   );
@@ -28,6 +29,8 @@ export default function DeptIssueDetail() {
 function Detail() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const canAct = user?.role === 'department_admin';
   const [issue, setIssue] = useState<Issue | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -97,10 +100,10 @@ function Detail() {
   return (
     <main className="container-civic max-w-6xl py-12">
       <Link
-        href="/dept"
+        href={canAct ? '/dept' : '/analytics'}
         className="inline-flex items-center gap-2 text-sm text-ink/60 hover:text-signal-rust mb-8"
       >
-        <ArrowLeft size={14} /> Queue
+        <ArrowLeft size={14} /> {canAct ? 'Queue' : 'Analytics'}
       </Link>
 
       <div className="mb-10">
@@ -188,47 +191,57 @@ function Detail() {
             <IssuesMap issues={[issue]} height="100%" />
           </div>
 
-          {/* Action panel */}
-          <div className="card !p-0">
-            <div className="p-5 border-b border-ink/10">
-              <div className="plate text-signal-rust mb-1">Take action</div>
-              <p className="text-sm text-ink/70">
-                Update status. Add an optional note for the citizen.
-              </p>
-            </div>
-            <div className="p-5 space-y-4">
-              <textarea
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-                rows={3}
-                className="input text-sm"
-                placeholder="Optional note (visible to citizen)"
-              />
-
-              <div className="grid grid-cols-2 gap-2">
-                {NEXT_STATUSES.filter((s) => s !== issue.status).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => updateStatus(s)}
-                    disabled={updating}
-                    className="p-3 border-2 border-ink/20 text-left text-sm transition hover:border-signal-rust hover:bg-signal-rust/5 disabled:opacity-50"
-                  >
-                    <span className="block font-medium">{STATUS_LABELS[s]}</span>
-                  </button>
-                ))}
+          {/* Action panel — only department admins of this dept can act */}
+          {canAct && (
+            <div className="card !p-0">
+              <div className="p-5 border-b border-ink/10">
+                <div className="plate text-signal-rust mb-1">Take action</div>
+                <p className="text-sm text-ink/70">
+                  Update status. Add an optional note for the citizen.
+                </p>
               </div>
+              <div className="p-5 space-y-4">
+                <textarea
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  className="input text-sm"
+                  placeholder="Optional note (visible to citizen)"
+                />
 
-              <button
-                type="button"
-                onClick={reroute}
-                disabled={updating}
-                className="w-full p-3 border-2 border-signal-rust/40 text-signal-rust hover:bg-signal-rust/5 transition flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50"
-              >
-                <AlertTriangle size={14} /> Not our issue — re-route
-              </button>
+                <div className="grid grid-cols-2 gap-2">
+                  {NEXT_STATUSES.filter((s) => s !== issue.status).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => updateStatus(s)}
+                      disabled={updating}
+                      className="p-3 border-2 border-ink/20 text-left text-sm transition hover:border-signal-rust hover:bg-signal-rust/5 disabled:opacity-50"
+                    >
+                      <span className="block font-medium">{STATUS_LABELS[s]}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={reroute}
+                  disabled={updating}
+                  className="w-full p-3 border-2 border-signal-rust/40 text-signal-rust hover:bg-signal-rust/5 transition flex items-center justify-center gap-2 text-sm font-medium disabled:opacity-50"
+                >
+                  <AlertTriangle size={14} /> Not our issue — re-route
+                </button>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Read-only notice for super-admins viewing a dept's issue */}
+          {!canAct && (
+            <div className="card text-sm text-ink/70">
+              You&apos;re viewing this as a super-admin. Status updates are made by
+              the department&apos;s own admin.
+            </div>
+          )}
         </aside>
       </div>
     </main>

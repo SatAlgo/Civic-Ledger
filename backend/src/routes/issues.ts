@@ -112,6 +112,30 @@ router.get(
 );
 
 /**
+ * GET /api/issues/mine/stats — aggregate counts for the current citizen's reports
+ */
+router.get(
+  '/mine/stats',
+  requireAuth,
+  requireRole('citizen'),
+  asyncHandler(async (req, res) => {
+    const agg = await Issue.aggregate<{ _id: string; count: number }>([
+      { $match: { reportedBy: req.user!._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+
+    const byStatus: Record<string, number> = {};
+    let total = 0;
+    for (const row of agg) {
+      byStatus[row._id] = row.count;
+      total += row.count;
+    }
+
+    res.json({ total, byStatus });
+  })
+);
+
+/**
  * GET /api/issues/nearby?lat=&lng=&radius=
  * Defaults to 5km radius. Returns up to 100 issues sorted by distance.
  */
