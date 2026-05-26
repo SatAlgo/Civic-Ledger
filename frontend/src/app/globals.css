@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-sans: 'Inter Tight', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+html, body {
+  background: #f5f1e8;
+  color: #0a0a0a;
+  font-family: var(--font-sans);
+}
+
+/* Subtle paper texture overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.07 0 0 0 0 0.05 0 0 0 0 0.02 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+::selection { background: #b8442e; color: #f5f1e8; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #efe9d9; }
+::-webkit-scrollbar-thumb { background: #1a1a1a; border: 2px solid #efe9d9; }
+::-webkit-scrollbar-thumb:hover { background: #b8442e; }
+
+@layer components {
+  /* Layout container */
+  .container-civic { @apply max-w-7xl mx-auto px-5 sm:px-8 lg:px-12; }
+
+  /* "plate" — small metadata, like a brass nameplate */
+  .plate {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: #1a1a1a;
+    opacity: 0.7;
+    font-weight: 500;
+  }
+
+  /* horizontal rule, thin */
+  .rule {
+    height: 1px;
+    background: rgba(10, 10, 10, 0.15);
+    width: 100%;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-ink text-paper px-5 py-2.5 text-sm font-medium tracking-tight transition-all hover:bg-signal-rust active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent text-ink border border-ink/30 px-5 py-2.5 text-sm font-medium tracking-tight transition-all hover:bg-ink hover:text-paper disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-rust {
+    @apply inline-flex items-center justify-center gap-2 bg-signal-rust text-paper px-5 py-2.5 text-sm font-medium tracking-tight transition-all hover:bg-ink active:translate-y-px disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent text-ink/80 px-3 py-2 text-sm font-medium tracking-tight transition-all hover:bg-ink/5 hover:text-ink relative;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-paper-soft border border-ink/15 p-6 relative;
+  }
+  .card-warm {
+    @apply bg-paper-warm border border-ink/20 p-6;
+  }
+
+  /* Form inputs */
+  .label {
+    @apply block text-xs uppercase tracking-wider font-mono text-ink/70 mb-2;
+  }
+  .input {
+    @apply w-full bg-paper border border-ink/25 px-3 py-2.5 text-sm text-ink placeholder:text-ink/40 focus:border-signal-rust focus:outline-none transition-colors;
+  }
+
+  /* Badge — used by StatusBadge */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider;
+  }
+
+  /* Decorative diagonal stripes */
+  .stripe-pattern {
+    background-image: repeating-linear-gradient(45deg, #0a0a0a, #0a0a0a 2px, transparent 2px, transparent 8px);
+  }
+}
+
+/* Leaflet — match civic aesthetic */
+.leaflet-container { background: #efe9d9 !important; font-family: var(--font-sans) !important; }
+.leaflet-popup-content-wrapper {
+  border-radius: 0 !important;
+  background: #f5f1e8 !important;
+  box-shadow: 3px 3px 0 #0a0a0a !important;
+  border: 1px solid #0a0a0a !important;
+}
+.leaflet-popup-tip { background: #f5f1e8 !important; border: 1px solid #0a0a0a !important; }
+.leaflet-control-zoom a {
+  background: #f5f1e8 !important;
+  color: #0a0a0a !important;
+  border-color: #0a0a0a !important;
+}
+.leaflet-control-attribution { font-family: var(--font-mono) !important; font-size: 10px !important; }
