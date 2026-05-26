@@ -16,6 +16,13 @@ html, body {
   background: #f5f1e8;
   color: #0a0a0a;
   font-family: var(--font-sans);
+  /* Stop iOS Safari from auto-zooming when a form input is tapped */
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Inputs â‰¥ 16px font-size to prevent iOS zoom-on-focus */
+input, textarea, select {
+  font-size: 16px;
 }
 
 /* Subtle paper texture overlay */
@@ -39,9 +46,9 @@ body::before {
 
 @layer components {
   /* Layout container */
-  .container-civic { @apply max-w-7xl mx-auto px-5 sm:px-8 lg:px-12; }
+  .container-civic { @apply max-w-7xl mx-auto px-4 sm:px-8 lg:px-12; }
 
-  /* "plate" — small metadata, like a brass nameplate */
+  /* "plate" â€” small metadata, like a brass nameplate */
   .plate {
     font-family: var(--font-mono);
     font-size: 0.7rem;
@@ -59,26 +66,29 @@ body::before {
     width: 100%;
   }
 
-  /* Buttons */
+  /* Buttons â€” all min 44px tall for thumb targets */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 bg-ink text-paper px-5 py-2.5 text-sm font-medium tracking-tight transition-all hover:bg-signal-rust active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 bg-ink text-paper px-5 py-3 text-sm font-medium tracking-tight transition-all hover:bg-signal-rust active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px];
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 bg-transparent text-ink border border-ink/30 px-5 py-2.5 text-sm font-medium tracking-tight transition-all hover:bg-ink hover:text-paper disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 bg-transparent text-ink border border-ink/30 px-5 py-3 text-sm font-medium tracking-tight transition-all hover:bg-ink hover:text-paper disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px];
   }
   .btn-rust {
-    @apply inline-flex items-center justify-center gap-2 bg-signal-rust text-paper px-5 py-2.5 text-sm font-medium tracking-tight transition-all hover:bg-ink active:translate-y-px disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 bg-signal-rust text-paper px-5 py-3 text-sm font-medium tracking-tight transition-all hover:bg-ink active:translate-y-px disabled:opacity-50 min-h-[44px];
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 bg-transparent text-ink/80 px-3 py-2 text-sm font-medium tracking-tight transition-all hover:bg-ink/5 hover:text-ink relative;
+    @apply inline-flex items-center justify-center gap-2 bg-transparent text-ink/80 px-3 py-2 text-sm font-medium tracking-tight transition-all hover:bg-ink/5 hover:text-ink relative min-h-[40px];
   }
 
   /* Card */
   .card {
-    @apply bg-paper-soft border border-ink/15 p-6 relative;
+    @apply bg-paper-soft border border-ink/15 p-5 sm:p-6 relative;
   }
   .card-warm {
-    @apply bg-paper-warm border border-ink/20 p-6;
+    @apply bg-paper-warm border border-ink/20 p-5 sm:p-6;
+  }
+  .card-tap {
+    @apply card transition-colors active:bg-paper-warm cursor-pointer;
   }
 
   /* Form inputs */
@@ -86,21 +96,47 @@ body::before {
     @apply block text-xs uppercase tracking-wider font-mono text-ink/70 mb-2;
   }
   .input {
-    @apply w-full bg-paper border border-ink/25 px-3 py-2.5 text-sm text-ink placeholder:text-ink/40 focus:border-signal-rust focus:outline-none transition-colors;
+    /* min-h ensures comfortable thumb tap on phones; 16px font prevents iOS zoom */
+    @apply w-full bg-paper border border-ink/25 px-3 py-3 text-base text-ink placeholder:text-ink/40 focus:border-signal-rust focus:outline-none transition-colors min-h-[48px];
   }
 
-  /* Badge — used by StatusBadge */
+  /* Badge */
   .badge {
     @apply inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono uppercase tracking-wider;
   }
 
-  /* Decorative diagonal stripes */
+  /* Stripe pattern */
   .stripe-pattern {
     background-image: repeating-linear-gradient(45deg, #0a0a0a, #0a0a0a 2px, transparent 2px, transparent 8px);
   }
+
+  /* Mobile-safe bottom padding â€” accounts for bottom nav (64px) + safe-area */
+  .pb-safe-bottom {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+  @screen md {
+    .pb-safe-bottom {
+      padding-bottom: 0;
+    }
+  }
+
+  /* Horizontal-scroll row of chips (for filter bars on mobile) */
+  .chip-row {
+    @apply flex gap-2 overflow-x-auto pb-2;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .chip-row::-webkit-scrollbar { display: none; }
+  .chip-row > * { flex-shrink: 0; }
 }
 
-/* Leaflet — match civic aesthetic */
+/* Custom xs breakpoint (matches Tailwind v3's typical 480px) */
+@media (min-width: 480px) {
+  .xs\:inline { display: inline; }
+  .xs\:hidden { display: none; }
+}
+
+/* Leaflet â€” match civic aesthetic */
 .leaflet-container { background: #efe9d9 !important; font-family: var(--font-sans) !important; }
 .leaflet-popup-content-wrapper {
   border-radius: 0 !important;
@@ -115,3 +151,10 @@ body::before {
   border-color: #0a0a0a !important;
 }
 .leaflet-control-attribution { font-family: var(--font-mono) !important; font-size: 10px !important; }
+
+/* Disable text selection on tap-and-hold for UI chrome (not content) */
+.no-select-touch {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}

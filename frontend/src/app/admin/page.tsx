@@ -16,7 +16,7 @@ import { RoleGuard } from '@/components/RoleGuard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { api } from '@/lib/api';
 import type { Department, Issue } from '@/lib/types';
-import { CATEGORY_LABELS, STATUS_LABELS } from '@/lib/types';
+import { CATEGORY_LABELS } from '@/lib/types';
 
 type Tab = 'departments' | 'reroute' | 'stats';
 
@@ -32,26 +32,43 @@ function AdminDashboard() {
   const [tab, setTab] = useState<Tab>('departments');
 
   return (
-    <main className="container-civic py-12">
-      <div className="plate mb-2">No. 010 / Administrator Console</div>
-      <h1 className="font-display text-5xl mb-10">Command center.</h1>
+    <>
+      <main className="container-civic py-6 sm:py-12 pb-safe-bottom">
+        <div className="plate mb-2">No. 010 / Administrator Console</div>
+        <h1 className="font-display text-3xl sm:text-5xl mb-8 sm:mb-10">Command center.</h1>
 
-      <div className="flex gap-1 mb-10 border-b border-ink/15">
-        <TabButton active={tab === 'departments'} onClick={() => setTab('departments')} icon={<Building2 size={14} />}>
-          Departments
-        </TabButton>
-        <TabButton active={tab === 'reroute'} onClick={() => setTab('reroute')} icon={<AlertTriangle size={14} />}>
-          Reroute queue
-        </TabButton>
-        <TabButton active={tab === 'stats'} onClick={() => setTab('stats')} icon={<BarChart3 size={14} />}>
-          Overview
-        </TabButton>
-      </div>
+        {/* Scrollable tabs on mobile */}
+        <div className="mb-8 sm:mb-10 border-b border-ink/15">
+          <div className="chip-row sm:flex sm:gap-1 sm:overflow-x-visible sm:pb-0">
+            <TabButton
+              active={tab === 'departments'}
+              onClick={() => setTab('departments')}
+              icon={<Building2 size={14} />}
+            >
+              Departments
+            </TabButton>
+            <TabButton
+              active={tab === 'reroute'}
+              onClick={() => setTab('reroute')}
+              icon={<AlertTriangle size={14} />}
+            >
+              Reroute queue
+            </TabButton>
+            <TabButton
+              active={tab === 'stats'}
+              onClick={() => setTab('stats')}
+              icon={<BarChart3 size={14} />}
+            >
+              Overview
+            </TabButton>
+          </div>
+        </div>
 
-      {tab === 'departments' && <DepartmentsTab />}
-      {tab === 'reroute' && <RerouteTab />}
-      {tab === 'stats' && <StatsTab />}
-    </main>
+        {tab === 'departments' && <DepartmentsTab />}
+        {tab === 'reroute' && <RerouteTab />}
+        {tab === 'stats' && <StatsTab />}
+      </main>
+    </>
   );
 }
 
@@ -69,13 +86,15 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`px-5 py-3 text-sm font-medium flex items-center gap-2 relative transition ${
+      className={`px-4 sm:px-5 py-3 text-sm font-medium flex items-center gap-2 relative transition whitespace-nowrap min-h-[44px] ${
         active ? 'text-ink' : 'text-ink/60 hover:text-ink'
       }`}
     >
       {icon}
       {children}
-      {active && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-signal-rust" />}
+      {active && (
+        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-signal-rust" />
+      )}
     </button>
   );
 }
@@ -84,7 +103,9 @@ function TabButton({
 function DepartmentsTab() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>(
+    'pending'
+  );
 
   const load = () => {
     setLoading(true);
@@ -113,12 +134,12 @@ function DepartmentsTab() {
 
   return (
     <div>
-      <div className="flex gap-2 mb-6">
+      <div className="chip-row sm:flex-wrap mb-6">
         {(['pending', 'approved', 'rejected', 'all'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-1.5 text-sm border transition capitalize ${
+            className={`px-3 py-2 text-sm border transition capitalize whitespace-nowrap min-h-[40px] ${
               filter === f
                 ? 'bg-ink text-paper border-ink'
                 : 'bg-transparent border-ink/20 hover:border-ink'
@@ -137,14 +158,14 @@ function DepartmentsTab() {
       {loading ? (
         <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />
       ) : filtered.length === 0 ? (
-        <p className="text-center py-16 text-ink/60">Nothing here.</p>
+        <p className="text-center py-16 text-ink/60 text-sm">Nothing here.</p>
       ) : (
-        <div className="grid lg:grid-cols-2 gap-4">
+        <div className="grid sm:grid-cols-2 gap-4">
           {filtered.map((d) => (
             <div key={d._id} className="card">
               <div className="flex items-start justify-between gap-4 mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="font-mono text-xs px-1.5 py-0.5 bg-ink text-paper">
                       {d.code}
                     </span>
@@ -153,35 +174,39 @@ function DepartmentsTab() {
                         d.status === 'pending'
                           ? 'text-signal-rust'
                           : d.status === 'approved'
-                          ? 'text-signal-moss'
-                          : 'text-ink/50'
+                            ? 'text-signal-moss'
+                            : 'text-ink/50'
                       }`}
                     >
                       {d.status}
                     </span>
                   </div>
-                  <h3 className="font-display text-xl">{d.name}</h3>
+                  <h3 className="font-display text-lg sm:text-xl break-words">{d.name}</h3>
                 </div>
                 {d.status === 'pending' && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <button
                       onClick={() => act(d._id, 'approve')}
-                      className="p-2 border border-signal-moss text-signal-moss hover:bg-signal-moss hover:text-paper transition"
+                      className="p-2.5 border border-signal-moss text-signal-moss hover:bg-signal-moss hover:text-paper transition min-w-[40px] min-h-[40px] flex items-center justify-center"
                       title="Approve"
+                      aria-label="Approve"
                     >
-                      <Check size={14} />
+                      <Check size={16} />
                     </button>
                     <button
                       onClick={() => act(d._id, 'reject')}
-                      className="p-2 border border-ink/30 text-ink/60 hover:bg-ink hover:text-paper transition"
+                      className="p-2.5 border border-ink/30 text-ink/60 hover:bg-ink hover:text-paper transition min-w-[40px] min-h-[40px] flex items-center justify-center"
                       title="Reject"
+                      aria-label="Reject"
                     >
-                      <X size={14} />
+                      <X size={16} />
                     </button>
                   </div>
                 )}
               </div>
-              {d.description && <p className="text-sm text-ink/70 mb-3">{d.description}</p>}
+              {d.description && (
+                <p className="text-sm text-ink/70 mb-3 break-words">{d.description}</p>
+              )}
               <div className="flex flex-wrap gap-1">
                 {d.categories.map((c) => (
                   <span key={c} className="text-xs px-2 py-0.5 bg-paper-warm font-mono">
@@ -238,12 +263,13 @@ function RerouteTab() {
     }
   };
 
-  if (loading) return <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />;
+  if (loading)
+    return <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />;
   if (issues.length === 0)
     return (
-      <div className="text-center py-16">
-        <h2 className="font-display text-2xl mb-2">Reroute queue is clear.</h2>
-        <p className="text-ink/60">No departments have flagged anything.</p>
+      <div className="text-center py-12 sm:py-16">
+        <h2 className="font-display text-xl sm:text-2xl mb-2">Reroute queue is clear.</h2>
+        <p className="text-ink/60 text-sm">No departments have flagged anything.</p>
       </div>
     );
 
@@ -251,18 +277,20 @@ function RerouteTab() {
     <div className="space-y-4">
       {issues.map((i) => (
         <div key={i._id} className="card">
-          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2 text-xs">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-2 text-xs flex-wrap">
                 <span className="plate">{CATEGORY_LABELS[i.category]}</span>
                 <span className="w-1 h-1 rounded-full bg-ink/30" />
                 <StatusBadge status={i.status} />
               </div>
-              <h3 className="font-display text-lg mb-1">{i.title}</h3>
-              <p className="text-sm text-ink/70 line-clamp-2">{i.description}</p>
+              <h3 className="font-display text-lg mb-1 break-words">{i.title}</h3>
+              <p className="text-sm text-ink/70 line-clamp-2 break-words">
+                {i.description}
+              </p>
             </div>
 
-            <div className="md:w-80 shrink-0">
+            <div className="lg:w-80 shrink-0">
               <label className="label">Assign to</label>
               <select
                 onChange={(e) => e.target.value && assign(i._id, e.target.value)}
@@ -302,7 +330,8 @@ function StatsTab() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />;
+  if (loading)
+    return <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />;
 
   const counts = issues.reduce<Record<string, number>>((acc, i) => {
     acc[i.status] = (acc[i.status] ?? 0) + 1;
@@ -317,12 +346,17 @@ function StatsTab() {
   const maxCat = Math.max(...Object.values(byCategory), 1);
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-10 sm:space-y-12">
+      {/* 2 cols on mobile, 4 on tablet+ */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-ink/10 border border-ink/10">
         <BigStat label="Total" value={issues.length} />
         <BigStat label="Resolved" value={counts.resolved ?? 0} accent="moss" />
         <BigStat label="In progress" value={counts.in_progress ?? 0} accent="rust" />
-        <BigStat label="Awaiting routing" value={counts.needs_reroute ?? 0} accent="rust" />
+        <BigStat
+          label="Awaiting routing"
+          value={counts.needs_reroute ?? 0}
+          accent="rust"
+        />
       </div>
 
       <div>
@@ -331,17 +365,19 @@ function StatsTab() {
           {Object.entries(byCategory)
             .sort(([, a], [, b]) => b - a)
             .map(([cat, n]) => (
-              <div key={cat} className="flex items-center gap-4">
-                <div className="w-48 text-sm font-medium shrink-0">
+              <div key={cat} className="flex items-center gap-3 sm:gap-4">
+                <div className="w-28 sm:w-48 text-xs sm:text-sm font-medium shrink-0 truncate">
                   {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] ?? cat}
                 </div>
-                <div className="flex-1 bg-paper-warm h-6 relative">
+                <div className="flex-1 bg-paper-warm h-5 sm:h-6 relative">
                   <div
                     className="h-full bg-signal-rust absolute left-0 top-0 transition-all duration-500"
                     style={{ width: `${(n / maxCat) * 100}%` }}
                   />
                 </div>
-                <div className="w-12 text-right font-mono text-sm">{n}</div>
+                <div className="w-8 sm:w-12 text-right font-mono text-xs sm:text-sm">
+                  {n}
+                </div>
               </div>
             ))}
         </div>
@@ -360,11 +396,15 @@ function BigStat({
   accent?: 'rust' | 'moss';
 }) {
   return (
-    <div className="bg-paper px-6 py-6">
-      <div className="plate mb-2">{label}</div>
+    <div className="bg-paper px-4 py-4 sm:px-6 sm:py-6">
+      <div className="plate mb-1 sm:mb-2 truncate">{label}</div>
       <div
-        className={`font-display text-4xl ${
-          accent === 'rust' ? 'text-signal-rust' : accent === 'moss' ? 'text-signal-moss' : ''
+        className={`font-display text-3xl sm:text-4xl ${
+          accent === 'rust'
+            ? 'text-signal-rust'
+            : accent === 'moss'
+              ? 'text-signal-moss'
+              : ''
         }`}
       >
         {value}

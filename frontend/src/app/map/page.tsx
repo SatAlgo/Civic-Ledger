@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Loader2 } from 'lucide-react';
-import { Navbar } from '@/components/Navbar';
 import { api } from '@/lib/api';
 import type { Issue } from '@/lib/types';
 import { STATUS_LABELS } from '@/lib/types';
@@ -44,7 +43,6 @@ export default function MapPage() {
 
   return (
     <>
-      <Navbar />
       <main className="container-civic py-12">
         <div className="plate mb-2">No. 009 / Public Map</div>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">
