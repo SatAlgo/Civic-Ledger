@@ -5,8 +5,35 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import { clearToken } from '@/lib/api';
 import { Bell, LogOut, User as UserIcon, Menu, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+
+/**
+ * Picks the single most-specific link that matches the current pathname.
+ *
+ * Why: with nested admin routes like /admin/departments and /admin/analytics,
+ * a naive `pathname.startsWith(href)` check would light up *multiple* links at
+ * once (e.g. both "Console" and "Analytics" when on /admin/analytics). We want
+ * the most specific (longest matching prefix) to win.
+ *
+ * The returned set will contain at most one href.
+ */
+function pickActiveHref(pathname: string, candidates: string[]): string | null {
+  // Sort by descending length so we test the most specific first.
+  const sorted = [...candidates].sort((a, b) => b.length - a.length);
+  for (const href of sorted) {
+    // Exact match OR prefix match where the next character is a "/".
+    // The "/" check prevents /dept from matching /dept-register, etc.
+    if (
+      pathname === href ||
+      pathname.startsWith(href + '/') ||
+      pathname.startsWith(href + '?')
+    ) {
+      return href;
+    }
+  }
+  return null;
+}
 
 export function Navbar() {
   const user = useAuthStore((s) => s.user);
@@ -44,6 +71,26 @@ export function Navbar() {
 
   const isAdmin = user?.role === 'super_admin' || user?.role === 'department_admin';
 
+  // Build the list of nav hrefs that this user can see, then figure out which
+  // one (if any) matches the current path. This is the single source of truth
+  // for which link gets the underline — used by both desktop and mobile.
+  //
+  // Citizens are NOT affected: their visible links (Forum, Map) match exactly
+  // the same way they did before (startsWith for Forum, strict for Map).
+  const consoleHref = user?.role === 'super_admin' ? '/admin' : '/dept';
+  const analyticsHref = user?.role === 'super_admin' ? '/admin/analytics' : '/dept';
+  // ^ department admins don't have a separate analytics route today, so we
+  //   collapse Analytics into Queue for them by pointing at the same href.
+
+  const activeHref = useMemo(() => {
+    const candidates: string[] = ['/forum', '/map'];
+    if (isAdmin) {
+      candidates.push(consoleHref);
+      if (user?.role === 'super_admin') candidates.push(analyticsHref);
+    }
+    return pickActiveHref(pathname, candidates);
+  }, [pathname, isAdmin, consoleHref, analyticsHref, user?.role]);
+
   return (
     <>
       <header className="border-b border-ink/10 bg-paper/80 backdrop-blur-sm sticky top-0 z-40">
@@ -62,20 +109,24 @@ export function Navbar() {
           {/* Desktop center nav */}
           {user && (
             <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-              {/* <NavLink href="/citizen" active={pathname.startsWith('/citizen')}>Dashboard</NavLink> */}
-              <NavLink href="/forum" active={pathname.startsWith('/forum')}>Forum</NavLink>
-              <NavLink href="/map" active={pathname === '/map'}>Map</NavLink>
+              <NavLink href="/forum" active={activeHref === '/forum'}>Forum</NavLink>
+              <NavLink href="/map" active={activeHref === '/map'}>Map</NavLink>
               {isAdmin && (
                 <>
                   <NavLink
-                    href={user.role === 'super_admin' ? '/admin' : '/dept'}
-                    active={pathname === '/admin' || pathname === '/dept'}
+                    href={consoleHref}
+                    active={activeHref === consoleHref}
                   >
                     {user.role === 'super_admin' ? 'Console' : 'Queue'}
                   </NavLink>
-                  <NavLink href="/analytics" active={pathname.startsWith('/analytics')}>
-                    Analytics
-                  </NavLink>
+                  {user.role === 'super_admin' && (
+                    <NavLink
+                      href={analyticsHref}
+                      active={activeHref === analyticsHref}
+                    >
+                      Analytics
+                    </NavLink>
+                  )}
                 </>
               )}
             </nav>
@@ -148,21 +199,27 @@ export function Navbar() {
                   <span className="badge bg-ink text-paper ml-auto">{user.role.replace('_', ' ')}</span>
                 </div>
 
+                {/* Citizen-visible links keep the exact same behavior they had */}
                 <MobileNavLink href="/citizen" active={pathname.startsWith('/citizen')}>Dashboard</MobileNavLink>
-                <MobileNavLink href="/forum" active={pathname.startsWith('/forum')}>Forum</MobileNavLink>
-                <MobileNavLink href="/map" active={pathname === '/map'}>Map</MobileNavLink>
+                <MobileNavLink href="/forum" active={activeHref === '/forum'}>Forum</MobileNavLink>
+                <MobileNavLink href="/map" active={activeHref === '/map'}>Map</MobileNavLink>
 
                 {isAdmin && (
                   <>
                     <MobileNavLink
-                      href={user.role === 'super_admin' ? '/admin' : '/dept'}
-                      active={pathname === '/admin' || pathname === '/dept'}
+                      href={consoleHref}
+                      active={activeHref === consoleHref}
                     >
                       {user.role === 'super_admin' ? 'Console' : 'Queue'}
                     </MobileNavLink>
-                    <MobileNavLink href="/analytics" active={pathname.startsWith('/analytics')}>
-                      Analytics
-                    </MobileNavLink>
+                    {user.role === 'super_admin' && (
+                      <MobileNavLink
+                        href={analyticsHref}
+                        active={activeHref === analyticsHref}
+                      >
+                        Analytics
+                      </MobileNavLink>
+                    )}
                   </>
                 )}
 

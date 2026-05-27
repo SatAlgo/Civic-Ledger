@@ -15,12 +15,15 @@ import {
 import { pushNotification } from '../services/notifications';
 
 const router = Router();
-
-// Every route below requires super_admin
 router.use(requireAuth, requireRole('super_admin'));
 
 /**
  * GET /api/admin/departments?status=pending|approved|rejected
+ *
+ * Enriches each department with:
+ *   - admins[]:    department_admin users tied to this department (for the
+ *                  Departments Directory page)
+ *   - issueCount:  count of issues currently assigned
  */
 router.get(
   '/departments',
@@ -30,49 +33,54 @@ router.get(
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       filter.status = status;
     }
+
     const departments = await Department.find(filter)
       .sort({ createdAt: -1 })
       .lean();
 
-    // For each department, pull the registering admin user(s) so the super-admin
-    // can verify who's behind the application before approving.
-    const deptIds = departments.map((d) => d._id);
-    const admins = await User.find({
-      department: { $in: deptIds },
-      role: 'department_admin',
-    })
-      .select('name email phone department createdAt')
-      .sort({ createdAt: 1 }) // earliest registration first (the original applicant)
-      .lean();
-
-    // Group admins by department id for O(1) lookup
-    const adminsByDept = new Map<string, typeof admins>();
-    for (const a of admins) {
-      const key = a.department?.toString();
-      if (!key) continue;
-      const list = adminsByDept.get(key) ?? [];
-      list.push(a);
-      adminsByDept.set(key, list);
+    if (departments.length === 0) {
+      return res.json({ departments: [] });
     }
 
-    const enriched = departments.map((d) => ({
-      ...d,
-      admins: (adminsByDept.get(d._id.toString()) ?? []).map((a) => ({
-        _id: a._id.toString(),
-        name: a.name,
-        email: a.email,
-        phone: a.phone ?? null,
-        createdAt: a.createdAt,
-      })),
-    }));
+    const deptIds = departments.map((d) => d._id);
+
+    const [admins, issueCounts] = await Promise.all([
+      User.find(
+        { role: 'department_admin', department: { $in: deptIds } },
+        { name: 1, email: 1, phone: 1, department: 1 }
+      ).lean(),
+      Issue.aggregate([
+        { $match: { assignedDepartment: { $in: deptIds } } },
+        { $group: { _id: '$assignedDepartment', count: { $sum: 1 } } },
+      ]),
+    ]);
+
+    const adminsByDept = new Map<string, typeof admins>();
+    for (const a of admins) {
+      if (!a.department) continue;
+      const k = a.department.toString();
+      if (!adminsByDept.has(k)) adminsByDept.set(k, []);
+      adminsByDept.get(k)!.push(a);
+    }
+
+    const countsByDept = new Map<string, number>();
+    for (const c of issueCounts) {
+      countsByDept.set(c._id.toString(), c.count);
+    }
+
+    const enriched = departments.map((d) => {
+      const key = d._id.toString();
+      return {
+        ...d,
+        admins: adminsByDept.get(key) ?? [],
+        issueCount: countsByDept.get(key) ?? 0,
+      };
+    });
 
     res.json({ departments: enriched });
   })
 );
 
-/**
- * PATCH /api/admin/departments/:id/approve
- */
 router.patch(
   '/departments/:id/approve',
   asyncHandler(async (req, res) => {
@@ -82,7 +90,6 @@ router.patch(
     dept.status = 'approved';
     await dept.save();
 
-    // Notify the department admins tied to this dept
     const admins = await User.find({
       department: dept._id,
       role: 'department_admin',
@@ -101,9 +108,6 @@ router.patch(
   })
 );
 
-/**
- * PATCH /api/admin/departments/:id/reject
- */
 router.patch(
   '/departments/:id/reject',
   asyncHandler(async (req, res) => {
@@ -131,10 +135,6 @@ router.patch(
   })
 );
 
-/**
- * GET /api/admin/issues/reroute-queue
- * Issues that have no assigned department.
- */
 router.get(
   '/issues/reroute-queue',
   asyncHandler(async (_req, res) => {
@@ -146,11 +146,6 @@ router.get(
   })
 );
 
-/**
- * PATCH /api/admin/issues/:id/assign
- * Body: { departmentId }
- * Manually assigns an issue to a department.
- */
 router.patch(
   '/issues/:id/assign',
   asyncHandler(async (req, res) => {
@@ -199,8 +194,9 @@ router.patch(
 
 /**
  * GET /api/admin/stats
- * Returns recent issues for the overview tab to compute counts.
- * (Could be a real aggregation but this is fine for v1.)
+ *
+ * Now populates assignedDepartment + reportedBy so the issues list page
+ * can show department/reporter names without extra round-trips.
  */
 router.get(
   '/stats',
@@ -208,6 +204,8 @@ router.get(
     const issues = await Issue.find()
       .sort({ createdAt: -1 })
       .limit(1000)
+      .populate('assignedDepartment', 'name code')
+      .populate('reportedBy', 'name email')
       .lean();
     res.json({ issues });
   })

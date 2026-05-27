@@ -65,8 +65,8 @@ export default function DeptRegisterPage() {
             A super-administrator will review your department registration and approve it shortly.
             You'll be notified by email once your account is active.
           </p>
-          <Link href="/" className="btn-secondary">
-            Back to home
+          <Link href="/login" className="btn-secondary">
+            Sign In
           </Link>
         </main>
       </>
