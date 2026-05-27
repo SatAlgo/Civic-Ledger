@@ -14,8 +14,10 @@ import {
   Search,
   AlertCircle,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { RoleGuard } from '@/components/RoleGuard';
+import { DeleteDepartmentModal } from '@/components/DeleteDepartmentModal';
 import { api } from '@/lib/api';
 import type { Department, Category, IssueStatus } from '@/lib/types';
 import { CATEGORY_LABELS } from '@/lib/types';
@@ -55,6 +57,8 @@ function Directory() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
+  // Modal state — null when closed, the dept being deleted when open
+  const [deletingDept, setDeletingDept] = useState<DepartmentWithExtras | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -76,6 +80,29 @@ function Directory() {
     } catch (e: any) {
       toast.error(e?.message ?? 'Action failed');
     }
+  };
+
+  const handleDelete = async (dept: DepartmentWithExtras) => {
+    // Throws on failure so the modal can keep itself open for retry
+    const res = await api<{
+      ok: boolean;
+      deleted: {
+        department: { name: string; code: string };
+        admins: number;
+      };
+    }>(`/api/admin/departments/${dept._id}`, { method: 'DELETE' }).catch((e: any) => {
+      toast.error(e?.message ?? 'Could not delete department');
+      throw e;
+    });
+
+    toast.success(
+      `Deleted ${res.deleted.department.code}` +
+        (res.deleted.admins > 0
+          ? ` and ${res.deleted.admins} admin account${res.deleted.admins === 1 ? '' : 's'}`
+          : '')
+    );
+    setDeletingDept(null);
+    load();
   };
 
   // Counts for the filter chips
@@ -183,9 +210,29 @@ function Directory() {
       ) : (
         <div className="grid lg:grid-cols-2 gap-5">
           {filtered.map((d) => (
-            <DepartmentCard key={d._id} dept={d} onApprove={() => act(d._id, 'approve')} onReject={() => act(d._id, 'reject')} />
+            <DepartmentCard
+              key={d._id}
+              dept={d}
+              onApprove={() => act(d._id, 'approve')}
+              onReject={() => act(d._id, 'reject')}
+              onRequestDelete={() => setDeletingDept(d)}
+            />
           ))}
         </div>
+      )}
+
+      {/* Delete confirmation — overlay sits above the entire page */}
+      {deletingDept && (
+        <DeleteDepartmentModal
+          dept={{
+            _id: deletingDept._id,
+            name: deletingDept.name || 'Unnamed department',
+            code: deletingDept.code || 'NO-CODE',
+            adminEmails: deletingDept.admins?.map((a) => a.email) ?? [],
+          }}
+          onConfirm={() => handleDelete(deletingDept)}
+          onClose={() => setDeletingDept(null)}
+        />
       )}
     </main>
   );
@@ -195,10 +242,12 @@ function DepartmentCard({
   dept,
   onApprove,
   onReject,
+  onRequestDelete,
 }: {
   dept: DepartmentWithExtras;
   onApprove: () => void;
   onReject: () => void;
+  onRequestDelete: () => void;
 }) {
   const statusMeta = {
     pending: { label: 'Pending review', color: 'text-signal-rust', dot: 'bg-signal-rust' },
@@ -259,6 +308,17 @@ function DepartmentCard({
               <X size={14} />
             </button>
           </div>
+        )}
+
+        {dept.status === 'rejected' && (
+          <button
+            onClick={onRequestDelete}
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-signal-rust/40 text-signal-rust hover:bg-signal-rust hover:text-paper hover:border-signal-rust transition text-xs font-medium shrink-0"
+            title="Delete permanently — frees up the email and code"
+          >
+            <Trash2 size={13} />
+            Delete
+          </button>
         )}
       </div>
 
