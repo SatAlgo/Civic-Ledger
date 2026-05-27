@@ -33,7 +33,40 @@ router.get(
     const departments = await Department.find(filter)
       .sort({ createdAt: -1 })
       .lean();
-    res.json({ departments });
+
+    // For each department, pull the registering admin user(s) so the super-admin
+    // can verify who's behind the application before approving.
+    const deptIds = departments.map((d) => d._id);
+    const admins = await User.find({
+      department: { $in: deptIds },
+      role: 'department_admin',
+    })
+      .select('name email phone department createdAt')
+      .sort({ createdAt: 1 }) // earliest registration first (the original applicant)
+      .lean();
+
+    // Group admins by department id for O(1) lookup
+    const adminsByDept = new Map<string, typeof admins>();
+    for (const a of admins) {
+      const key = a.department?.toString();
+      if (!key) continue;
+      const list = adminsByDept.get(key) ?? [];
+      list.push(a);
+      adminsByDept.set(key, list);
+    }
+
+    const enriched = departments.map((d) => ({
+      ...d,
+      admins: (adminsByDept.get(d._id.toString()) ?? []).map((a) => ({
+        _id: a._id.toString(),
+        name: a.name,
+        email: a.email,
+        phone: a.phone ?? null,
+        createdAt: a.createdAt,
+      })),
+    }));
+
+    res.json({ departments: enriched });
   })
 );
 

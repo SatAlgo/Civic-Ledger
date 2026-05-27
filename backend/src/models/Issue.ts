@@ -31,6 +31,10 @@ export interface IIssue extends Document {
   assignedDepartment?: Types.ObjectId | null;
   status: IssueStatus;
   statusHistory: IStatusHistory[];
+  upvoteCount: number;
+  commentCount: number;
+  engagementScore: number;
+  lastEngagedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -91,6 +95,12 @@ const IssueSchema = new Schema<IIssue>(
       index: true,
     },
     statusHistory: { type: [StatusHistorySchema], default: [] },
+
+    // ----- Forum / engagement cached fields -----
+    upvoteCount: { type: Number, default: 0, min: 0, index: true },
+    commentCount: { type: Number, default: 0, min: 0 },
+    engagementScore: { type: Number, default: 0, index: true },
+    lastEngagedAt: { type: Date, default: () => new Date() },
   },
   { timestamps: true }
 );
@@ -100,6 +110,8 @@ IssueSchema.index({ location: '2dsphere' });
 // Common access patterns
 IssueSchema.index({ status: 1, createdAt: -1 });
 IssueSchema.index({ assignedDepartment: 1, status: 1 });
+// Trending feed sort
+IssueSchema.index({ engagementScore: -1, createdAt: -1 });
 
 export const Issue: Model<IIssue> =
   mongoose.models.Issue || mongoose.model<IIssue>('Issue', IssueSchema);

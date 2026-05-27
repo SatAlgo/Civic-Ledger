@@ -57,167 +57,111 @@ function DeptDashboard() {
   const open = issues.filter((i) => !['resolved', 'rejected'].includes(i.status)).length;
 
   return (
-    <>
-      <main className="container-civic py-6 sm:py-12 pb-safe-bottom">
-        <div className="plate mb-2">Department Console</div>
-
-        {/* Header */}
-        <div className="mb-8 sm:mb-12">
-          <h1 className="font-display text-3xl sm:text-5xl">
+    <main className="container-civic py-12">
+      <div className="plate mb-2">Department Console</div>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-12">
+        <div>
+          <h1 className="font-display text-5xl">
             <span className="text-signal-rust">{open}</span> open
           </h1>
-          <p className="text-ink/70 mt-2 text-sm sm:text-base">
-            Issues routed to your department
-            {user?.name ? `, ${user.name.split(' ')[0]}` : ''}.
+          <p className="text-ink/70 mt-2">
+            Issues routed to your department, {user?.name?.split(' ')[0]}.
             Update status to keep citizens informed.
           </p>
         </div>
 
-        {/* Stat tiles — 3 cols across all sizes */}
-        <div className="grid grid-cols-3 gap-px bg-ink/10 border border-ink/10 mb-8 sm:mb-10">
+        <div className="grid grid-cols-3 gap-px bg-ink/10 border border-ink/10">
           <Stat label="Total" value={issues.length} />
           <Stat label="In progress" value={counts.in_progress ?? 0} accent />
           <Stat label="Resolved" value={counts.resolved ?? 0} />
         </div>
+      </div>
 
-        {/* Filter chips — horizontal scroll on mobile */}
-        <div className="mb-6 sm:mb-8 pb-6 border-b border-ink/10">
-          <div className="flex items-center gap-2 mb-3 sm:mb-0">
-            <Filter size={14} className="text-ink/50" />
-            <div className="plate">Filter</div>
-          </div>
-          <div className="chip-row sm:flex-wrap mt-3">
+      {/* Filter chips */}
+      <div className="flex flex-wrap items-center gap-2 mb-8 pb-6 border-b border-ink/10">
+        <Filter size={14} className="text-ink/50 mr-1" />
+        <Chip active={filter === 'all'} onClick={() => setFilter('all')} label="All" count={issues.length} />
+        {(Object.keys(STATUS_LABELS) as IssueStatus[]).map((key) =>
+          counts[key] ? (
             <Chip
-              active={filter === 'all'}
-              onClick={() => setFilter('all')}
-              label="All"
-              count={issues.length}
+              key={key}
+              active={filter === key}
+              onClick={() => setFilter(key)}
+              label={STATUS_LABELS[key]}
+              count={counts[key]}
             />
-            {(Object.keys(STATUS_LABELS) as IssueStatus[]).map((key) =>
-              counts[key] ? (
-                <Chip
-                  key={key}
-                  active={filter === key}
-                  onClick={() => setFilter(key)}
-                  label={STATUS_LABELS[key]}
-                  count={counts[key]}
-                />
-              ) : null
-            )}
-          </div>
-        </div>
+          ) : null
+        )}
+      </div>
 
-        {loading ? (
-          <div className="text-center py-20 plate">Loading queue…</div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 sm:py-24 border-2 border-dashed border-ink/15">
-            <h2 className="font-display text-xl sm:text-2xl mb-2">Inbox zero.</h2>
-            <p className="text-ink/60 text-sm">Nothing in this filter right now.</p>
-          </div>
-        ) : (
-          <>
-            {/* MOBILE: card list */}
-            <div className="grid gap-3 md:hidden">
+      {loading ? (
+        <div className="text-center py-20 plate">Loading queue…</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-24 border-2 border-dashed border-ink/15">
+          <h2 className="font-display text-2xl mb-2">Inbox zero.</h2>
+          <p className="text-ink/60">Nothing in this filter right now.</p>
+        </div>
+      ) : (
+        <div className="border border-ink/15">
+          <table className="w-full">
+            <thead className="bg-paper-soft border-b border-ink/15">
+              <tr className="text-left">
+                <Th>Issue</Th>
+                <Th>Category</Th>
+                <Th>Status</Th>
+                <Th>Reported</Th>
+                <Th>{''}</Th>
+              </tr>
+            </thead>
+            <tbody>
               {filtered.map((i) => (
-                <button
+                <tr
                   key={i._id}
+                  className="border-b border-ink/10 hover:bg-paper-soft transition group cursor-pointer"
                   onClick={() => router.push(`/dept/issues/${i._id}`)}
-                  className="card-tap text-left"
                 >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="font-display text-base font-medium line-clamp-2 leading-snug flex-1 min-w-0">
+                  <Td>
+                    <div className="font-display text-base font-medium line-clamp-1">
                       {i.title}
                     </div>
-                    <ArrowUpRight
-                      size={18}
-                      className="text-ink/40 shrink-0 mt-0.5"
-                    />
-                  </div>
-                  <p className="text-sm text-ink/70 line-clamp-2 mb-3">{i.description}</p>
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-ink/60 font-mono">
-                        {CATEGORY_LABELS[i.category]}
-                      </span>
-                      <StatusBadge status={i.status} />
+                    <div className="text-xs text-ink/60 line-clamp-1 mt-0.5">
+                      {i.description}
                     </div>
-                    <span className="text-xs font-mono text-ink/50 whitespace-nowrap">
+                  </Td>
+                  <Td>
+                    <div className="text-sm">{CATEGORY_LABELS[i.category]}</div>
+                  </Td>
+                  <Td>
+                    <StatusBadge status={i.status} />
+                  </Td>
+                  <Td>
+                    <span className="text-xs font-mono text-ink/50">
                       {formatDistanceToNow(new Date(i.createdAt), { addSuffix: true })}
                     </span>
-                  </div>
-                </button>
+                  </Td>
+                  <Td>
+                    <ArrowUpRight
+                      size={16}
+                      className="text-ink/40 group-hover:text-signal-rust transition"
+                    />
+                  </Td>
+                </tr>
               ))}
-            </div>
-
-            {/* DESKTOP: table */}
-            <div className="hidden md:block border border-ink/15">
-              <table className="w-full">
-                <thead className="bg-paper-soft border-b border-ink/15">
-                  <tr className="text-left">
-                    <Th>Issue</Th>
-                    <Th>Category</Th>
-                    <Th>Status</Th>
-                    <Th>Reported</Th>
-                    <Th>{''}</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((i) => (
-                    <tr
-                      key={i._id}
-                      className="border-b border-ink/10 hover:bg-paper-soft transition group cursor-pointer"
-                      onClick={() => router.push(`/dept/issues/${i._id}`)}
-                    >
-                      <Td>
-                        <div className="font-display text-base font-medium line-clamp-1">
-                          {i.title}
-                        </div>
-                        <div className="text-xs text-ink/60 line-clamp-1 mt-0.5">
-                          {i.description}
-                        </div>
-                      </Td>
-                      <Td>
-                        <div className="text-sm">{CATEGORY_LABELS[i.category]}</div>
-                      </Td>
-                      <Td>
-                        <StatusBadge status={i.status} />
-                      </Td>
-                      <Td>
-                        <span className="text-xs font-mono text-ink/50">
-                          {formatDistanceToNow(new Date(i.createdAt), { addSuffix: true })}
-                        </span>
-                      </Td>
-                      <Td>
-                        <ArrowUpRight
-                          size={16}
-                          className="text-ink/40 group-hover:text-signal-rust transition"
-                        />
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </main>
-    </>
+            </tbody>
+          </table>
+        </div>
+      )}
+    </main>
   );
 }
 
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent?: boolean;
-}) {
+function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
-    <div className="bg-paper px-4 py-3 sm:px-6 sm:py-4">
-      <div className="plate mb-1 truncate">{label}</div>
-      <div className={`font-display text-2xl sm:text-3xl ${accent ? 'text-signal-rust' : ''}`}>
+    <div className="bg-paper px-6 py-4">
+      <div className="plate mb-1">{label}</div>
+      <div
+        className={`font-display text-3xl ${accent ? 'text-signal-rust' : ''}`}
+      >
         {value}
       </div>
     </div>
@@ -238,7 +182,7 @@ function Chip({
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-2 text-sm font-medium border transition flex items-center gap-2 whitespace-nowrap min-h-[40px] ${
+      className={`px-3 py-1.5 text-sm font-medium border transition flex items-center gap-2 ${
         active
           ? 'bg-ink text-paper border-ink'
           : 'bg-transparent text-ink border-ink/20 hover:border-ink'

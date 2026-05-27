@@ -59,6 +59,20 @@ export function initSocket(server: HttpServer): IOServer {
     // Optional client-driven room joins (e.g. live map page wants city-wide)
     socket.on('join:map', () => socket.join('map'));
     socket.on('leave:map', () => socket.leave('map'));
+
+    // Forum live feed (upvotes, new comments across all issues)
+    socket.on('join:forum', () => socket.join('forum'));
+    socket.on('leave:forum', () => socket.leave('forum'));
+
+    // Per-issue room — for live comments on the issue detail page
+    socket.on('join:issue', (issueId: string) => {
+      if (typeof issueId === 'string' && /^[a-f0-9]{24}$/i.test(issueId)) {
+        socket.join(`issue:${issueId}`);
+      }
+    });
+    socket.on('leave:issue', (issueId: string) => {
+      if (typeof issueId === 'string') socket.leave(`issue:${issueId}`);
+    });
   });
 
   return io;

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
+import { Navbar } from '@/components/Navbar';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -53,6 +54,7 @@ export default function DeptRegisterPage() {
   if (submitted) {
     return (
       <>
+        <Navbar />
         <main className="container-civic max-w-lg py-24 text-center">
           <CheckCircle2 size={64} className="mx-auto text-signal-moss mb-6" />
           <div className="plate mb-2">Request received</div>
@@ -73,6 +75,7 @@ export default function DeptRegisterPage() {
 
   return (
     <>
+      <Navbar />
       <main className="container-civic max-w-2xl py-16">
         <div className="plate mb-4">No. 005 / Department Registration</div>
         <h1 className="font-display text-4xl mb-2">Join the registry.</h1>

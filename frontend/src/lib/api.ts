@@ -35,7 +35,22 @@ export async function api<T = any>(path: string, options: ApiOptions = {}): Prom
     body: json ? JSON.stringify(json) : (rest.body as any),
   });
 
+  // if (!res.ok) {
+  //   let message = `Request failed (${res.status})`;
+  //   try {
+  //     const err = await res.json();
+  //     message = err.error || err.message || message;
+  //   } catch {}
+  //   throw new Error(message);
+  // }
+
+
   if (!res.ok) {
+    // 401 means the token is invalid/expired — wipe it so the app stops
+    // pretending we're logged in. The AuthProvider re-checks on next render.
+    if (res.status === 401 && typeof window !== 'undefined') {
+      clearToken();
+    }
     let message = `Request failed (${res.status})`;
     try {
       const err = await res.json();

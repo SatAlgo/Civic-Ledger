@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Bell, Check, Inbox } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
+import { Navbar } from '@/components/Navbar';
 import { api } from '@/lib/api';
 import type { Notification } from '@/lib/types';
 
@@ -44,6 +45,7 @@ export default function NotificationsPage() {
   if (loading || !user) {
     return (
       <>
+        <Navbar />
         <main className="container-civic py-20 text-center plate animate-pulse">
           Loading…
         </main>
@@ -53,6 +55,7 @@ export default function NotificationsPage() {
 
   return (
     <>
+      <Navbar />
       <main className="container-civic max-w-3xl py-12">
         <div className="plate mb-2">Notifications</div>
         <div className="flex items-end justify-between mb-10">

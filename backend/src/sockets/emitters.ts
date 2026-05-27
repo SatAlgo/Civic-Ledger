@@ -39,3 +39,36 @@ export function emitIssueReroute(issue: IIssue) {
 export function emitMapUpdate(issue: IIssue) {
   getIO().to('map').emit('map:update', issue);
 }
+
+// ============== Forum events ==============
+// Clients on /forum opt in via `socket.emit('join:forum')`.
+// Clients viewing a specific issue can opt in via
+// `socket.emit('join:issue', issueId)` to get live comments on that issue only.
+
+export function emitIssueUpvoted(payload: {
+  issueId: string;
+  upvoteCount: number;
+  userId: string;
+  upvoted: boolean; // true on add, false on remove
+}) {
+  getIO().to('forum').emit('issue:upvoted', payload);
+  getIO().to(`issue:${payload.issueId}`).emit('issue:upvoted', payload);
+}
+
+export function emitIssueCommented(payload: {
+  issueId: string;
+  commentCount: number;
+  comment: any; // populated comment with publicUser
+}) {
+  getIO().to('forum').emit('issue:commented', payload);
+  getIO().to(`issue:${payload.issueId}`).emit('issue:commented', payload);
+}
+
+export function emitCommentDeleted(payload: {
+  issueId: string;
+  commentId: string;
+  commentCount: number;
+}) {
+  getIO().to('forum').emit('comment:deleted', payload);
+  getIO().to(`issue:${payload.issueId}`).emit('comment:deleted', payload);
+}

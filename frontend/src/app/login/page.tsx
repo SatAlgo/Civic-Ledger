@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { api, setToken } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import { Navbar } from '@/components/Navbar';
 import type { User } from '@/lib/types';
 
 export default function LoginPage() {
@@ -42,6 +43,7 @@ export default function LoginPage() {
 
   return (
     <>
+      <Navbar />
       <main className="container-civic max-w-md py-20">
         <div className="plate mb-4">No. 003 / Authentication</div>
         <h1 className="font-display text-4xl mb-2">Sign in</h1>

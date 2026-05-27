@@ -8,9 +8,11 @@ import { errorHandler, notFound } from './middleware/errorHandler';
 
 import authRoutes from './routes/auth';
 import issueRoutes from './routes/issues';
+import commentRoutes from './routes/comments';
 import deptRoutes from './routes/dept';
 import adminRoutes from './routes/admin';
 import notificationRoutes from './routes/notifications';
+import forumRoutes from './routes/forum';
 
 export function createApp(): Express {
   const app = express();
@@ -41,6 +43,8 @@ export function createApp(): Express {
 
   // API routes
   app.use('/api/auth', authRoutes);
+  app.use('/api/forum', forumRoutes);
+  app.use('/api/issues/:id/comments', commentRoutes);
   app.use('/api/issues', issueRoutes);
   app.use('/api/dept', deptRoutes);
   app.use('/api/admin', adminRoutes);

@@ -40,6 +40,10 @@ A civic registry / editorial print look — Fraunces serif for display, Inter Ti
 | `/dept/issues/[id]` | Issue detail with status-update + reroute panel | Dept admin |
 | `/admin` | Tabs: department approvals, reroute queue, stats | Super-admin |
 | `/notifications` | All notifications, mark all read | Any |
+| `/profile` | View and edit account, change password, role-aware stats | Any |
+| `/analytics` | Interactive map analytics — pins colored by department, role-scoped data | Dept admin, Super-admin |
+| `/forum` | Community forum — trending / newest / top tabs, upvote, comment | Public (read) / signed in (write) |
+| `/forum/issues/[id]` | Public issue detail — upvote, comment, view photos & timeline | Public (read) / signed in (write) |
 
 Role-based redirects on login:
 - `citizen` → `/citizen`

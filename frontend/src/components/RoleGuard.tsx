@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import type { Role } from '@/lib/types';
+import { Navbar } from './Navbar';
 
 export function RoleGuard({
   allowed,
@@ -36,5 +37,10 @@ export function RoleGuard({
 
   if (!allowed.includes(user.role)) return null;
 
-  return <>{children}</>;
+  return (
+    <>
+      <Navbar />
+      {children}
+    </>
+  );
 }

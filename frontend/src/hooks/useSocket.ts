@@ -11,7 +11,9 @@ export function getSocket(): Socket | null {
   return socket;
 }
 
-export function useSocket(onEvents?: (s: Socket) => void) {
+type Cleanup = void | (() => void);
+
+export function useSocket(onEvents?: (s: Socket) => Cleanup) {
   const user = useAuthStore((s) => s.user);
   const handlerRef = useRef(onEvents);
   handlerRef.current = onEvents;
@@ -26,9 +28,19 @@ export function useSocket(onEvents?: (s: Socket) => void) {
       transports: ['websocket', 'polling'],
     });
 
-    handlerRef.current?.(socket);
+    // Run the registration callback. If it returns a cleanup function, we
+    // keep it to call on unmount — that lets components add and remove
+    // their own per-event listeners cleanly.
+    const userCleanup = handlerRef.current?.(socket);
 
     return () => {
+      if (typeof userCleanup === 'function') {
+        try {
+          userCleanup();
+        } catch {
+          // ignore — best-effort cleanup
+        }
+      }
       socket?.disconnect();
       socket = null;
     };

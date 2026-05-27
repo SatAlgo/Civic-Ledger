@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { Camera, Crosshair, X, ArrowRight, Loader2 } from 'lucide-react';
 import { RoleGuard } from '@/components/RoleGuard';
+import { NearbyIssuesPrompt } from '@/components/NearbyIssuesPrompt';
 import { CATEGORY_LABELS, type Category } from '@/lib/types';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import { api, getToken } from '@/lib/api';
@@ -247,6 +248,12 @@ function ReportForm() {
             {geo.error && <p className="text-xs text-signal-rust mt-1">{geo.error}</p>}
             <p className="text-xs text-ink/60 mt-2">Tap or drag the pin to adjust.</p>
           </Section>
+
+          <NearbyIssuesPrompt
+            lat={geo.position?.lat ?? null}
+            lng={geo.position?.lng ?? null}
+            category={category}
+          />
 
           <button
             type="button"

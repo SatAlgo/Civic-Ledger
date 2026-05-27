@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "seed:admin": "tsx src/scripts/seedSuperAdmin.ts",
+    "seed:demo": "tsx src/scripts/seedDemo.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

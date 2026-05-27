@@ -112,9 +112,12 @@ All requests use `Content-Type: application/json` unless noted (the issue-create
 | POST | `/api/auth/signup` | `{ name, email, password, phone? }` | `{ user, token }` | — |
 | POST | `/api/auth/login` | `{ email, password }` | `{ user, token }` | — |
 | GET | `/api/auth/me` | — | `{ user }` | any |
+| PATCH | `/api/auth/me` | `{ name?, phone? }` | `{ user }` | any |
+| POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` | `{ ok, token }` | any |
 | POST | `/api/auth/department/register` | `{ deptName, deptCode, description?, adminName, adminEmail, password, categories[] }` | `{ message, departmentId }` | — |
 
 Department admins **cannot log in** until their department is approved.
+Email is intentionally **not** updatable via `PATCH /api/auth/me` — it's the login identifier; changing it safely would need a verification flow that v1 doesn't have.
 
 ### Issues
 
@@ -123,13 +126,38 @@ Department admins **cannot log in** until their department is approved.
 | POST | `/api/issues` | multipart: `title, description, category, lat, lng, photos[]` | `{ issue }` | citizen |
 | GET | `/api/issues` | — | `{ issues }` (last 500) | optional |
 | GET | `/api/issues/mine` | — | `{ issues }` | citizen |
+| GET | `/api/issues/mine/stats` | — | `{ total, byStatus: { [status]: count } }` | citizen |
 | GET | `/api/issues/nearby` | `?lat=&lng=&radius=` (m, default 5000) | `{ issues }` | any |
-| GET | `/api/issues/:id` | — | `{ issue }` | any (with row-level checks) |
+| GET | `/api/issues/:id` | — | `{ issue }` (with `hasUpvoted`, redacted reporter for non-owners) | any |
+| POST | `/api/issues/:id/upvote` | — | `{ upvoted, upvoteCount }` (toggle) | any |
 
-Visibility rules on `GET /api/issues/:id`:
-- citizen → only their own
-- department_admin → only ones assigned to their dept
-- super_admin → all
+Visibility on `GET /api/issues/:id`:
+With the public forum, **any signed-in user can read any issue's basic detail** so they can see comments, photos, and upvote it. However the reporter's identity is redacted to first-name-only unless the viewer is the reporter themselves, the assigned department admin, or a super admin.
+
+### Forum (public engagement layer)
+
+| Method | Path | Body / Query | Returns | Auth |
+|---|---|---|---|---|
+| GET | `/api/forum` | `?sort=trending\|new\|top&page=&limit=` | `{ issues, page, limit, total, sort }` | optional |
+| GET | `/api/forum/nearby` | `?lat=&lng=&radius=&category=` | `{ issues }` (up to 5 nearby, for duplicate-prompt during report) | any |
+
+Reporter names on `/api/forum` responses are always first-name-only for privacy.
+
+### Comments (nested under issues)
+
+| Method | Path | Body | Returns | Auth |
+|---|---|---|---|---|
+| GET | `/api/issues/:id/comments` | `?page=&limit=` | `{ comments, page, limit, total }` | optional |
+| POST | `/api/issues/:id/comments` | multipart: `body` + optional `photo` | `{ comment }` | any |
+| DELETE | `/api/issues/:id/comments/:commentId` | — | `{ ok: true }` | author or super_admin |
+
+Author deletes are hard. Super_admin deletes are soft (`isHidden: true`) so the audit trail survives.
+
+**Rate limits** (per-user, sliding window):
+- `POST /api/issues/:id/comments` — 10 per hour
+- `POST /api/issues/:id/upvote` — 30 per hour
+
+Returns `429 Too Many Requests` with a `Retry-After` header on cap.
 
 ### Department admin (`/api/dept/*` requires role `department_admin`)
 
@@ -183,13 +211,33 @@ Events emitted from server → client:
 | `issue:reroute` | `super_admin` | The full issue document |
 | `notification:new` | `user:{id}` | The full notification document |
 | `map:update` | `map` (opt-in) | The full issue document |
+| `issue:upvoted` | `forum`, `issue:{id}` (opt-in) | `{ issueId, upvoteCount, userId, upvoted }` |
+| `issue:commented` | `forum`, `issue:{id}` (opt-in) | `{ issueId, commentCount, comment }` |
+| `comment:deleted` | `forum`, `issue:{id}` (opt-in) | `{ issueId, commentId, commentCount }` |
 
 Client-driven events (optional):
 
 | Event | Purpose |
 |---|---|
-| `join:map` | Join the city-wide map broadcast room |
-| `leave:map` | Leave it |
+| `join:map` / `leave:map` | City-wide map broadcast room |
+| `join:forum` / `leave:forum` | Forum-wide upvote + comment events |
+| `join:issue` / `leave:issue` (payload: issueId) | Live comments on a single issue |
+
+---
+
+## Trending engine
+
+`src/services/trendingEngine.ts`. Computes engagement scores cached on each Issue document.
+
+```
+score = (upvotes + comments * 2) / (hoursOld + 2)^1.5
+```
+
+- Comments weighted 2× upvotes (writing is harder than clicking)
+- `+2` prevents brand-new issues from scoring infinity
+- `^1.5` is moderate time decay — a 24-hour-old issue needs more engagement than a 2-hour-old one to stay on top
+
+A background `setInterval` refreshes scores every 5 minutes for issues from the last 7 days (older issues have effectively-zero decayed scores and don't need updates). The interval starts in `server.ts` and is cleared on graceful shutdown. Tunable constants are at the top of the trending engine file — adjust there after watching real traffic.
 
 ---
 

@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ArrowLeft, MapPin, Calendar, User, Loader2, AlertTriangle } from 'lucide-react';
 import { RoleGuard } from '@/components/RoleGuard';
 import { StatusBadge } from '@/components/StatusBadge';
+import { CommentsSection } from '@/components/CommentsSection';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import type { Issue, IssueStatus } from '@/lib/types';
@@ -167,6 +168,8 @@ function Detail() {
                 ))}
             </ol>
           </section>
+
+          <CommentsSection issueId={issue._id} />
         </div>
 
         {/* SIDEBAR */}

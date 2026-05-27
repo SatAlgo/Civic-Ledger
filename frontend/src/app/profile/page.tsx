@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { User as UserIcon, Mail, Phone, Shield, Building2, Loader2, KeyRound, Save } from 'lucide-react';
+import { Navbar } from '@/components/Navbar';
 import { useAuthStore } from '@/store/auth';
 import { api, setToken } from '@/lib/api';
 import type { User } from '@/lib/types';
@@ -25,7 +26,7 @@ export default function ProfilePage() {
   if (loading || !user) {
     return (
       <>
-        
+        <Navbar />
         <main className="container-civic py-32 text-center">
           <Loader2 size={32} className="animate-spin mx-auto text-ink/40" />
         </main>
@@ -35,6 +36,7 @@ export default function ProfilePage() {
 
   return (
     <>
+      <Navbar />
       <main className="container-civic max-w-3xl py-12">
         <div className="plate mb-2">Your Profile</div>
         <h1 className="font-display text-5xl mb-2">

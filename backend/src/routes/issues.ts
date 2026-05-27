@@ -1,14 +1,20 @@
 import { Router } from 'express';
 import { Issue } from '../models/Issue';
+import { Upvote } from '../models/Upvote';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { requireRole } from '../middleware/requireRole';
 import { upload } from '../middleware/upload';
+import { rateLimit } from '../middleware/rateLimit';
 import { asyncHandler } from '../utils/asyncHandler';
 import { CreateIssueSchema } from '../utils/validators';
 import { BadRequestError, NotFoundError } from '../utils/errors';
 import { uploadMany } from '../services/cloudinaryUpload';
 import { routeIssue } from '../services/routingEngine';
-import { emitIssueNew, emitMapUpdate } from '../sockets/emitters';
+import {
+  emitIssueNew,
+  emitMapUpdate,
+  emitIssueUpvoted,
+} from '../sockets/emitters';
 
 const router = Router();
 
@@ -170,12 +176,15 @@ router.get(
 
 /**
  * GET /api/issues/:id — single issue by id.
- * Citizens can only fetch their own; dept admins can only fetch ones assigned
- * to their department; super admins can fetch any.
+ *
+ * With the public forum, any signed-in user can read any issue (so they can
+ * see comments, photos, etc). However the reporter's identity is redacted
+ * to first-name-only UNLESS the viewer is the reporter themselves, the
+ * assigned department admin, or a super admin.
  */
 router.get(
   '/:id',
-  requireAuth,
+  optionalAuth,
   asyncHandler(async (req, res) => {
     const issue = await Issue.findById(req.params.id)
       .populate('reportedBy', 'name email')
@@ -183,19 +192,96 @@ router.get(
 
     if (!issue) throw new NotFoundError('Issue not found');
 
-    const user = req.user!;
-    if (user.role === 'citizen') {
-      const reporterId = (issue.reportedBy as any)?._id?.toString() ?? issue.reportedBy.toString();
-      if (reporterId !== user._id.toString()) throw new NotFoundError('Issue not found');
-    } else if (user.role === 'department_admin') {
-      const deptId = (issue.assignedDepartment as any)?._id?.toString();
-      if (!user.department || deptId !== user.department.toString()) {
-        throw new NotFoundError('Issue not found');
+    // Anonymous viewers get a public-redacted view; signed-in privileged
+    // viewers (the reporter, the assigned dept admin, super admins) see the
+    // full reporter identity.
+    const user = req.user; // may be undefined for anonymous
+    const reporterIdRaw = (issue.reportedBy as any)?._id ?? issue.reportedBy;
+    const reporterId = reporterIdRaw?.toString();
+    const deptId = (issue.assignedDepartment as any)?._id?.toString();
+    const isReporter = !!user && reporterId === user._id.toString();
+    const isAssignedDeptAdmin =
+      !!user &&
+      user.role === 'department_admin' &&
+      !!user.department &&
+      deptId === user.department.toString();
+    const isSuperAdmin = !!user && user.role === 'super_admin';
+    const hasPrivateView = isReporter || isAssignedDeptAdmin || isSuperAdmin;
+
+    // Redact reporter identity for non-privileged viewers
+    const issueObj = issue.toObject() as any;
+    if (!hasPrivateView && issueObj.reportedBy && typeof issueObj.reportedBy === 'object') {
+      const first = (issueObj.reportedBy.name ?? 'Citizen').trim().split(/\s+/)[0];
+      issueObj.reportedBy = { displayName: first || 'Citizen' };
+    }
+
+    // Has the current user upvoted this issue? Anonymous → always false.
+    if (user) {
+      const myUpvote = await Upvote.findOne({
+        user: user._id,
+        issue: issue._id,
+      }).lean();
+      issueObj.hasUpvoted = !!myUpvote;
+    } else {
+      issueObj.hasUpvoted = false;
+    }
+
+    res.json({ issue: issueObj });
+  })
+);
+
+/**
+ * POST /api/issues/:id/upvote — toggle the current user's upvote.
+ * Idempotent-ish: returns the new state. Rate-limited to 30/hr per user.
+ */
+router.post(
+  '/:id/upvote',
+  requireAuth,
+  rateLimit({ name: 'upvote', limit: 30, windowSec: 3600 }),
+  asyncHandler(async (req, res) => {
+    const issueId = req.params.id;
+    const userId = req.user!._id;
+
+    const issue = await Issue.findById(issueId);
+    if (!issue) throw new NotFoundError('Issue not found');
+
+    // Try to remove an existing upvote (toggle off)
+    const removed = await Upvote.findOneAndDelete({ issue: issueId, user: userId });
+    let upvoted: boolean;
+    if (removed) {
+      issue.upvoteCount = Math.max(0, (issue.upvoteCount ?? 0) - 1);
+      upvoted = false;
+    } else {
+      // Wasn't upvoted — create. Catch the duplicate-key race just in case.
+      try {
+        await Upvote.create({ issue: issueId, user: userId });
+        issue.upvoteCount = (issue.upvoteCount ?? 0) + 1;
+        upvoted = true;
+      } catch (err: any) {
+        if (err?.code === 11000) {
+          // Lost the race — already upvoted. Re-read and report current state.
+          const exists = await Upvote.findOne({ issue: issueId, user: userId });
+          upvoted = !!exists;
+        } else {
+          throw err;
+        }
       }
     }
-    // super_admin: see all
 
-    res.json({ issue });
+    issue.lastEngagedAt = new Date();
+    await issue.save();
+
+    emitIssueUpvoted({
+      issueId: issue._id.toString(),
+      upvoteCount: issue.upvoteCount,
+      userId: userId.toString(),
+      upvoted,
+    });
+
+    res.json({
+      upvoted,
+      upvoteCount: issue.upvoteCount,
+    });
   })
 );
 

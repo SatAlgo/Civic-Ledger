@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { api, getToken } from '@/lib/api';
+import { api, getToken, clearToken } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -14,10 +14,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+    // api<{ user: any }>('/api/auth/me')
+    //   .then((res) => setUser(res.user))
+    //   .catch(() => setUser(null))
+    //   .finally(() => setLoading(false));
+
     api<{ user: any }>('/api/auth/me')
       .then((res) => setUser(res.user))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        // /me failed — token is bad or backend is unreachable.
+        // Clear both so we don't leave the app in a half-authenticated state.
+        clearToken();
+        setUser(null);
+      })
+  .finally(() => setLoading(false));
   }, [setUser, setLoading]);
 
   return <>{children}</>;

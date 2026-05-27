@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -11,14 +12,30 @@ import {
   BarChart3,
   Loader2,
   Calendar,
+  Map as MapIcon,
 } from 'lucide-react';
 import { RoleGuard } from '@/components/RoleGuard';
 import { StatusBadge } from '@/components/StatusBadge';
 import { api } from '@/lib/api';
-import type { Department, Issue } from '@/lib/types';
-import { CATEGORY_LABELS } from '@/lib/types';
+import type { Department, Issue, Category, IssueStatus } from '@/lib/types';
+import {
+  CATEGORY_LABELS,
+  STATUS_LABELS,
+  CATEGORY_COLORS,
+  STATUS_COLORS,
+} from '@/lib/types';
 
-type Tab = 'departments' | 'reroute' | 'stats';
+// Leaflet must not SSR
+const IssuesMap = dynamic(() => import('@/components/IssuesMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[600px] border border-ink/20 flex items-center justify-center bg-paper-warm/40">
+      <Loader2 size={28} className="animate-spin text-ink/40" />
+    </div>
+  ),
+});
+
+type Tab = 'departments' | 'reroute' | 'map' | 'stats';
 
 export default function AdminPage() {
   return (
@@ -32,43 +49,46 @@ function AdminDashboard() {
   const [tab, setTab] = useState<Tab>('departments');
 
   return (
-    <>
-      <main className="container-civic py-6 sm:py-12 pb-safe-bottom">
-        <div className="plate mb-2">No. 010 / Administrator Console</div>
-        <h1 className="font-display text-3xl sm:text-5xl mb-8 sm:mb-10">Command center.</h1>
+    <main className="container-civic py-12">
+      <div className="plate mb-2">No. 010 / Administrator Console</div>
+      <h1 className="font-display text-5xl mb-10">Command center.</h1>
 
-        {/* Scrollable tabs on mobile */}
-        <div className="mb-8 sm:mb-10 border-b border-ink/15">
-          <div className="chip-row sm:flex sm:gap-1 sm:overflow-x-visible sm:pb-0">
-            <TabButton
-              active={tab === 'departments'}
-              onClick={() => setTab('departments')}
-              icon={<Building2 size={14} />}
-            >
-              Departments
-            </TabButton>
-            <TabButton
-              active={tab === 'reroute'}
-              onClick={() => setTab('reroute')}
-              icon={<AlertTriangle size={14} />}
-            >
-              Reroute queue
-            </TabButton>
-            <TabButton
-              active={tab === 'stats'}
-              onClick={() => setTab('stats')}
-              icon={<BarChart3 size={14} />}
-            >
-              Overview
-            </TabButton>
-          </div>
-        </div>
+      <div className="flex gap-1 mb-10 border-b border-ink/15 flex-wrap">
+        <TabButton
+          active={tab === 'departments'}
+          onClick={() => setTab('departments')}
+          icon={<Building2 size={14} />}
+        >
+          Departments
+        </TabButton>
+        <TabButton
+          active={tab === 'reroute'}
+          onClick={() => setTab('reroute')}
+          icon={<AlertTriangle size={14} />}
+        >
+          Reroute queue
+        </TabButton>
+        <TabButton
+          active={tab === 'map'}
+          onClick={() => setTab('map')}
+          icon={<MapIcon size={14} />}
+        >
+          Map
+        </TabButton>
+        <TabButton
+          active={tab === 'stats'}
+          onClick={() => setTab('stats')}
+          icon={<BarChart3 size={14} />}
+        >
+          Overview
+        </TabButton>
+      </div>
 
-        {tab === 'departments' && <DepartmentsTab />}
-        {tab === 'reroute' && <RerouteTab />}
-        {tab === 'stats' && <StatsTab />}
-      </main>
-    </>
+      {tab === 'departments' && <DepartmentsTab />}
+      {tab === 'reroute' && <RerouteTab />}
+      {tab === 'map' && <MapTab />}
+      {tab === 'stats' && <StatsTab />}
+    </main>
   );
 }
 
@@ -86,7 +106,7 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`px-4 sm:px-5 py-3 text-sm font-medium flex items-center gap-2 relative transition whitespace-nowrap min-h-[44px] ${
+      className={`px-5 py-3 text-sm font-medium flex items-center gap-2 relative transition ${
         active ? 'text-ink' : 'text-ink/60 hover:text-ink'
       }`}
     >
@@ -103,9 +123,8 @@ function TabButton({
 function DepartmentsTab() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected' | 'all'>(
-    'pending'
-  );
+  const [filter, setFilter] =
+    useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
 
   const load = () => {
     setLoading(true);
@@ -130,16 +149,18 @@ function DepartmentsTab() {
   };
 
   const filtered =
-    filter === 'all' ? departments : departments.filter((d) => d.status === filter);
+    filter === 'all'
+      ? departments
+      : departments.filter((d) => d.status === filter);
 
   return (
     <div>
-      <div className="chip-row sm:flex-wrap mb-6">
+      <div className="flex gap-2 mb-6">
         {(['pending', 'approved', 'rejected', 'all'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-3 py-2 text-sm border transition capitalize whitespace-nowrap min-h-[40px] ${
+            className={`px-3 py-1.5 text-sm border transition capitalize ${
               filter === f
                 ? 'bg-ink text-paper border-ink'
                 : 'bg-transparent border-ink/20 hover:border-ink'
@@ -158,14 +179,14 @@ function DepartmentsTab() {
       {loading ? (
         <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />
       ) : filtered.length === 0 ? (
-        <p className="text-center py-16 text-ink/60 text-sm">Nothing here.</p>
+        <p className="text-center py-16 text-ink/60">Nothing here.</p>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="grid lg:grid-cols-2 gap-4">
           {filtered.map((d) => (
             <div key={d._id} className="card">
               <div className="flex items-start justify-between gap-4 mb-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono text-xs px-1.5 py-0.5 bg-ink text-paper">
                       {d.code}
                     </span>
@@ -174,42 +195,43 @@ function DepartmentsTab() {
                         d.status === 'pending'
                           ? 'text-signal-rust'
                           : d.status === 'approved'
-                            ? 'text-signal-moss'
-                            : 'text-ink/50'
+                          ? 'text-signal-moss'
+                          : 'text-ink/50'
                       }`}
                     >
                       {d.status}
                     </span>
                   </div>
-                  <h3 className="font-display text-lg sm:text-xl break-words">{d.name}</h3>
+                  <h3 className="font-display text-xl">{d.name}</h3>
                 </div>
                 {d.status === 'pending' && (
-                  <div className="flex gap-2 shrink-0">
+                  <div className="flex gap-2">
                     <button
                       onClick={() => act(d._id, 'approve')}
-                      className="p-2.5 border border-signal-moss text-signal-moss hover:bg-signal-moss hover:text-paper transition min-w-[40px] min-h-[40px] flex items-center justify-center"
+                      className="p-2 border border-signal-moss text-signal-moss hover:bg-signal-moss hover:text-paper transition"
                       title="Approve"
-                      aria-label="Approve"
                     >
-                      <Check size={16} />
+                      <Check size={14} />
                     </button>
                     <button
                       onClick={() => act(d._id, 'reject')}
-                      className="p-2.5 border border-ink/30 text-ink/60 hover:bg-ink hover:text-paper transition min-w-[40px] min-h-[40px] flex items-center justify-center"
+                      className="p-2 border border-ink/30 text-ink/60 hover:bg-ink hover:text-paper transition"
                       title="Reject"
-                      aria-label="Reject"
                     >
-                      <X size={16} />
+                      <X size={14} />
                     </button>
                   </div>
                 )}
               </div>
               {d.description && (
-                <p className="text-sm text-ink/70 mb-3 break-words">{d.description}</p>
+                <p className="text-sm text-ink/70 mb-3">{d.description}</p>
               )}
               <div className="flex flex-wrap gap-1">
                 {d.categories.map((c) => (
-                  <span key={c} className="text-xs px-2 py-0.5 bg-paper-warm font-mono">
+                  <span
+                    key={c}
+                    className="text-xs px-2 py-0.5 bg-paper-warm font-mono"
+                  >
                     {CATEGORY_LABELS[c] ?? c}
                   </span>
                 ))}
@@ -267,9 +289,9 @@ function RerouteTab() {
     return <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />;
   if (issues.length === 0)
     return (
-      <div className="text-center py-12 sm:py-16">
-        <h2 className="font-display text-xl sm:text-2xl mb-2">Reroute queue is clear.</h2>
-        <p className="text-ink/60 text-sm">No departments have flagged anything.</p>
+      <div className="text-center py-16">
+        <h2 className="font-display text-2xl mb-2">Reroute queue is clear.</h2>
+        <p className="text-ink/60">No departments have flagged anything.</p>
       </div>
     );
 
@@ -277,20 +299,18 @@ function RerouteTab() {
     <div className="space-y-4">
       {issues.map((i) => (
         <div key={i._id} className="card">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-2 text-xs flex-wrap">
+          <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2 text-xs">
                 <span className="plate">{CATEGORY_LABELS[i.category]}</span>
                 <span className="w-1 h-1 rounded-full bg-ink/30" />
                 <StatusBadge status={i.status} />
               </div>
-              <h3 className="font-display text-lg mb-1 break-words">{i.title}</h3>
-              <p className="text-sm text-ink/70 line-clamp-2 break-words">
-                {i.description}
-              </p>
+              <h3 className="font-display text-lg mb-1">{i.title}</h3>
+              <p className="text-sm text-ink/70 line-clamp-2">{i.description}</p>
             </div>
 
-            <div className="lg:w-80 shrink-0">
+            <div className="md:w-80 shrink-0">
               <label className="label">Assign to</label>
               <select
                 onChange={(e) => e.target.value && assign(i._id, e.target.value)}
@@ -310,6 +330,136 @@ function RerouteTab() {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* -------------------- MAP (admin) -------------------- */
+function MapTab() {
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState<Category | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<IssueStatus | 'all'>('all');
+
+  useEffect(() => {
+    api<{ issues: Issue[] }>('/api/admin/stats')
+      .then((res) => setIssues(res.issues || []))
+      .catch(() =>
+        api<{ issues: Issue[] }>('/api/issues')
+          .then((res) => setIssues(res.issues))
+          .catch(() => toast.error('Could not load issues'))
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = issues.filter((i) => {
+    if (categoryFilter !== 'all' && i.category !== categoryFilter) return false;
+    if (statusFilter !== 'all' && i.status !== statusFilter) return false;
+    return true;
+  });
+
+  if (loading) {
+    return <Loader2 size={32} className="animate-spin mx-auto text-ink/40 my-16" />;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header w/ counts */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div className="plate mb-1">No. 011 / City Map</div>
+          <h2 className="font-display text-3xl">
+            {filtered.length}
+            <span className="text-ink/40 text-2xl ml-2">
+              {filtered.length === issues.length
+                ? 'issues'
+                : `of ${issues.length} issues`}
+            </span>
+          </h2>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3">
+          <div>
+            <label className="label !mb-1">Category</label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value as any)}
+              className="input !py-1.5"
+            >
+              <option value="all">All categories</option>
+              {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (
+                <option key={c} value={c}>
+                  {CATEGORY_LABELS[c]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label !mb-1">Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as any)}
+              className="input !py-1.5"
+            >
+              <option value="all">All statuses</option>
+              {(Object.keys(STATUS_LABELS) as IssueStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Map */}
+      <IssuesMap issues={filtered} variant="admin" height="600px" />
+
+      {/* Legend */}
+      <div className="grid md:grid-cols-2 gap-6 pt-2">
+        <div>
+          <div className="plate mb-3">Outer ring — Category</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {(Object.keys(CATEGORY_LABELS) as Category[]).map((c) => (
+              <LegendRow
+                key={c}
+                color={CATEGORY_COLORS[c]}
+                label={CATEGORY_LABELS[c]}
+              />
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="plate mb-3">Inner dot — Status</div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {(Object.keys(STATUS_LABELS) as IssueStatus[]).map((s) => (
+              <LegendRow
+                key={s}
+                color={STATUS_COLORS[s]}
+                label={STATUS_LABELS[s]}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs text-ink/50 font-mono">
+        Each pin: outer ring shows what kind of issue it is, inner dot shows
+        where it is in the workflow.
+      </p>
+    </div>
+  );
+}
+
+function LegendRow({ color, label }: { color: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span
+        className="inline-block w-3 h-3 rounded-full border border-paper"
+        style={{ background: color, boxShadow: '0 0 0 1px rgba(0,0,0,0.15)' }}
+      />
+      <span className="text-ink/80">{label}</span>
     </div>
   );
 }
@@ -346,8 +496,7 @@ function StatsTab() {
   const maxCat = Math.max(...Object.values(byCategory), 1);
 
   return (
-    <div className="space-y-10 sm:space-y-12">
-      {/* 2 cols on mobile, 4 on tablet+ */}
+    <div className="space-y-12">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-ink/10 border border-ink/10">
         <BigStat label="Total" value={issues.length} />
         <BigStat label="Resolved" value={counts.resolved ?? 0} accent="moss" />
@@ -365,19 +514,27 @@ function StatsTab() {
           {Object.entries(byCategory)
             .sort(([, a], [, b]) => b - a)
             .map(([cat, n]) => (
-              <div key={cat} className="flex items-center gap-3 sm:gap-4">
-                <div className="w-28 sm:w-48 text-xs sm:text-sm font-medium shrink-0 truncate">
-                  {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] ?? cat}
+              <div key={cat} className="flex items-center gap-4">
+                <div className="w-48 text-sm font-medium shrink-0 flex items-center gap-2">
+                  <span
+                    className="inline-block w-2.5 h-2.5 rounded-full"
+                    style={{
+                      background:
+                        CATEGORY_COLORS[cat as Category] ?? '#6b6b6b',
+                    }}
+                  />
+                  {CATEGORY_LABELS[cat as Category] ?? cat}
                 </div>
-                <div className="flex-1 bg-paper-warm h-5 sm:h-6 relative">
+                <div className="flex-1 bg-paper-warm h-6 relative">
                   <div
-                    className="h-full bg-signal-rust absolute left-0 top-0 transition-all duration-500"
-                    style={{ width: `${(n / maxCat) * 100}%` }}
+                    className="h-full absolute left-0 top-0 transition-all duration-500"
+                    style={{
+                      width: `${(n / maxCat) * 100}%`,
+                      background: CATEGORY_COLORS[cat as Category] ?? '#b8442e',
+                    }}
                   />
                 </div>
-                <div className="w-8 sm:w-12 text-right font-mono text-xs sm:text-sm">
-                  {n}
-                </div>
+                <div className="w-12 text-right font-mono text-sm">{n}</div>
               </div>
             ))}
         </div>
@@ -396,15 +553,15 @@ function BigStat({
   accent?: 'rust' | 'moss';
 }) {
   return (
-    <div className="bg-paper px-4 py-4 sm:px-6 sm:py-6">
-      <div className="plate mb-1 sm:mb-2 truncate">{label}</div>
+    <div className="bg-paper px-6 py-6">
+      <div className="plate mb-2">{label}</div>
       <div
-        className={`font-display text-3xl sm:text-4xl ${
+        className={`font-display text-4xl ${
           accent === 'rust'
             ? 'text-signal-rust'
             : accent === 'moss'
-              ? 'text-signal-moss'
-              : ''
+            ? 'text-signal-moss'
+            : ''
         }`}
       >
         {value}

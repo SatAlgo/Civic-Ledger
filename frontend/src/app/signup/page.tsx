@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { api, setToken } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import { Navbar } from '@/components/Navbar';
 import type { User } from '@/lib/types';
 
 export default function SignupPage() {
@@ -38,6 +39,7 @@ export default function SignupPage() {
 
   return (
     <>
+      <Navbar />
       <main className="container-civic max-w-md py-20">
         <div className="plate mb-4">No. 004 / New Citizen Account</div>
         <h1 className="font-display text-4xl mb-2">Get on the record.</h1>

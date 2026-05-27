@@ -81,3 +81,11 @@ export const ChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
   newPassword: z.string().min(6, 'New password must be at least 6 characters').max(100),
 });
+
+// ---- Forum ----
+
+export const CreateCommentSchema = z.object({
+  body: z.string().trim().min(1, 'Comment body required').max(1000),
+});
+
+export const ForumSortSchema = z.enum(['trending', 'new', 'top']).default('trending');

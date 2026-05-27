@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { env } from './config/env';
 import { createApp } from './app';
 import { initSocket } from './sockets';
+import { startTrendingRefreshLoop } from './services/trendingEngine';
 
 async function start() {
   // 1. Connect to MongoDB
@@ -25,15 +26,20 @@ async function start() {
   initSocket(server);
   console.log('✔ Socket.IO initialised');
 
-  // 4. Listen
+  // 4. Background workers
+  const trendingHandle = startTrendingRefreshLoop();
+  console.log('✔ Trending refresh loop started');
+
+  // 5. Listen
   server.listen(env.PORT, () => {
     console.log(`✔ Server listening on http://localhost:${env.PORT}`);
     console.log(`  Environment: ${env.NODE_ENV}`);
   });
 
-  // 5. Graceful shutdown
+  // 6. Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received — shutting down…`);
+    clearInterval(trendingHandle);
     server.close(() => {
       mongoose.connection.close().then(() => {
         console.log('Closed.');
